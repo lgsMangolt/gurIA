@@ -1,0 +1,1 @@
+Quatro propostas vetoriais originais para gurIA. SVGs transparentes com tipografia de sistema; converter texto em curvas antes da produção gráfica final. Fonte de criação: scripts/generate-guria-logos.py. Não representam pesquisa de disponibilidade de marca.

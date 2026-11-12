@@ -1,0 +1,122 @@
+{
+  "name": "gurIA",
+  "tagline": "Aprenda conectando ideias.",
+  "personality": [
+    "clara",
+    "curiosa",
+    "acolhedora"
+  ],
+  "avoid": "ornamental",
+  "defaultLayout": "orbita",
+  "layouts": [
+    {
+      "id": "orbita",
+      "name": "Órbita",
+      "title": "Espaço para conectar.",
+      "description": "Navegação lateral, respiro generoso e uma grande superfície para explorar sua rede.",
+      "color": "#171717",
+      "bg": "#fcfcfc",
+      "surface": "#f1f1f1",
+      "text": "#232323",
+      "muted": "#626262",
+      "primaryText": "#ffffff",
+      "tags": [
+        "Mapa em destaque",
+        "Lateral espaçosa",
+        "Recomendado"
+      ]
+    },
+    {
+      "id": "atlas",
+      "name": "Atlas",
+      "title": "Tudo pronto para trabalhar.",
+      "description": "Navegação no topo, cartões compactos e mais largura útil para organizar seus cursos.",
+      "color": "#171717",
+      "bg": "#ffffff",
+      "surface": "#f1f1f1",
+      "text": "#232323",
+      "muted": "#626262",
+      "primaryText": "#ffffff",
+      "tags": [
+        "Navegação superior",
+        "Painel compacto",
+        "Mais área útil"
+      ]
+    },
+    {
+      "id": "caderno",
+      "name": "Caderno",
+      "title": "Uma ideia de cada vez.",
+      "description": "Papel quente, títulos editoriais e uma coluna de leitura para desacelerar e aprofundar.",
+      "color": "#171717",
+      "bg": "#fafafa",
+      "surface": "#f1f1f1",
+      "text": "#232323",
+      "muted": "#626262",
+      "primaryText": "#ffffff",
+      "tags": [
+        "Leitura editorial",
+        "Coluna central",
+        "Ritmo tranquilo"
+      ]
+    },
+    {
+      "id": "foco",
+      "name": "Foco",
+      "title": "Entre no seu ritmo.",
+      "description": "Um ambiente escuro, navegação em trilho e área de trabalho ampla para sessões concentradas.",
+      "color": "#d4d4d4",
+      "bg": "#141414",
+      "surface": "#212121",
+      "text": "#eeeeee",
+      "muted": "#b5b5b5",
+      "primaryText": "#141414",
+      "tags": [
+        "Tema escuro",
+        "Trilho compacto",
+        "Sessões de foco"
+      ]
+    }
+  ],
+  "foundation": "Primer primitives 11.10.0 + semantic brand overrides",
+  "motion": {
+    "easeOut": [
+      0.22,
+      1,
+      0.36,
+      1
+    ],
+    "fastMs": 150,
+    "baseMs": 250,
+    "slowMs": 450
+  },
+  "spacingPx": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    48,
+    64
+  ],
+  "rules": [
+    "Priorize uma ação por grupo.",
+    "A assinatura gurIA usa IA em destaque e sublinhado sob gur; mantenha espaço livre ao redor.",
+    "Use somente os tokens do layout escolhido em cada tela.",
+    "Use cor junto com texto ou ícone para comunicar estado.",
+    "Respeite movimento reduzido e foco de teclado visível."
+  ],
+  "shortName": "gur",
+  "nameStory": "gur é o nome; gurIA destaca IA e brinca com “guria”, expressão usada no Sul.",
+  "logo": {
+    "selected": "04 — Só a palavra",
+    "wordmark": "/study/gurIA-logo.svg",
+    "onDark": "/study/gurIA-logo-dark.svg",
+    "icon": "/study/gurIA-icon.svg",
+    "accent": "#707070",
+    "onDarkAccent": "#bdbdbd",
+    "concept": "gur em primeiro plano, IA em destaque e sublinhado sob gur."
+  },
+  "palette": "Preto e cinza"
+}

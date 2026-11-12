@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "types/**/*.d.ts",
+    "lib/export/*.d.ts",
+    "components/study/**/*.tsx",
+    "components/scene-renderers/quiz-view.tsx",
+    "lib/study/**/*.ts",
+    "app/api/study/**/*.ts",
+    "app/study/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}
