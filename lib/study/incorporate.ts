@@ -46,6 +46,7 @@ export function incorporateMaterial(
         question: item.quizQuestion || undefined,
         evidence: [evidence],
         attempts: [],
+        exercises: [],
         due: 0,
       } satisfies Concept);
   }

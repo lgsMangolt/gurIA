@@ -1,19 +1,19 @@
 'use client';
-import dynamic from 'next/dynamic';
+import { BACKUP_FORMAT, isKnownBackupFormat } from '@/lib/study/brand';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   emptyWorkspace,
   mastery,
   recordAnswer,
+  retryAfterFeedback,
+  type StudyMode,
   type Workspace,
   type Concept,
 } from '@/lib/study/domain';
 import {
   addImprovementFeedback,
-  chooseImprovement,
   evaluateImprovement,
   type ImprovementEvent,
-  type Variant,
 } from '@/lib/study/improvement';
 import { incorporateMaterial } from '@/lib/study/incorporate';
 import { pt } from '@/lib/study/locale';
@@ -22,21 +22,25 @@ import { Materials } from './Materials';
 import { CoursesPlan } from './CoursesPlan';
 import { Studies } from './Studies';
 import { StudyChat } from './StudyChat';
-import { StudyLibrary } from './StudyLibrary';
+import { PracticeTab } from './practice/PracticeTab';
+import { SkillsTab } from './skills/SkillsTab';
 import { StudySkeleton } from './StudySkeleton';
+import { ReminderSettings } from './ReminderSettings';
+import { InterviewTab } from './InterviewTab';
 import { useStudyNavigation, type StudyTab as Tab } from './useStudyNavigation';
-import { api, Dialog, Field } from './shared';
-const ClassroomSurface = dynamic(
-  () => import('@/components/classroom/ClassroomSurface').then((module) => module.ClassroomSurface),
-  { ssr: false, loading: () => <StudySkeleton label="Carregando revisão e prática…" /> },
-);
+import { api, Dialog, Field, FileInput } from './shared';
+import { exercisesOf } from '@/lib/study/exercises/migrate';
+import { lessonPracticeTarget, reviewTarget } from '@/lib/study/ui/navigation';
 type Snapshot = { data: Workspace; revision: number };
 const sectionDescriptions: Record<Exclude<Tab, 'studies'>, string> = {
   chat: 'Converse sobre suas ideias e transforme uma delas em estudo.',
   network: 'Explore os conceitos, suas conexões e o que já está na hora de revisar.',
   materials: 'Transforme aulas e gravações em conceitos para estudar.',
   courses: 'Organize suas aulas e acompanhe o avanço de cada curso.',
-  library: 'Acesse seus cursos e práticas em um só lugar.',
+  praticar: 'Pratique em sessões de estudo: Rápido, Aprofundar, Prova ou Revisão espaçada.',
+  skills: 'Transforme o que você domina em skills, revise e guarde cada versão.',
+  entrevista:
+    'Treine entrevistas de emprego com um entrevistador simulado e receba um retorno honesto.',
   plan: 'Veja o que estudar hoje e ajuste o plano ao seu tempo.',
   settings: 'Escolha sua IA, confira a transcrição e gerencie seus dados.',
 };
@@ -49,15 +53,12 @@ const layouts = {
 type Layout = keyof typeof layouts;
 export function StudyApp() {
   const [chatTopic, setChatTopic] = useState('');
-  const [proEnabled, setProEnabled] = useState(false);
-  useEffect(() => {
-    fetch('/api/agent/runtime').then(async (response) => {
-      if (response.ok && (await response.json()).enabled === true) setProEnabled(true);
-    }).catch(() => {});
-  }, []);
-  const { tab, reading, course, practice, navigate, canGoBack, canGoForward, goBack, goForward } =
+  const { tab, reading, course, navigate, canGoBack, canGoForward, goBack, goForward } =
     useStudyNavigation();
-  const setTab = (value: Tab) => navigate({ tab: value, practice: null });
+  const setTab = (value: Tab) => {
+    setPracticeStart(undefined);
+    navigate({ tab: value });
+  };
   const setCourse = (value: string) => navigate({ course: value });
   const [layout, setLayout] = useState<Layout>('orbita');
   useEffect(() => {
@@ -95,16 +96,15 @@ export function StudyApp() {
     [selected, setSelected] = useState(''),
     [editing, setEditing] = useState<Concept | null>(null),
     [busy, setBusy] = useState(false),
-    [quiz, setQuiz] = useState<string[]>([]),
-    [answer, setAnswer] = useState<number | null>(null),
-    [feedback, setFeedback] = useState(false),
-    [teachingVariant, setTeachingVariant] = useState<Variant>('baseline'),
-    [teachingExposure, setTeachingExposure] = useState(''),
     [application, setApplication] = useState(false),
     [response, setResponse] = useState(''),
     [grade, setGrade] = useState<any>(null),
     [deep, setDeep] = useState<any>(null),
-    [settings, setSettings] = useState<any>(null);
+    [settings, setSettings] = useState<any>(null),
+    // O que o Praticar abre pré-selecionado (modo e conceitos). `key` remonta o seletor.
+    [practiceStart, setPracticeStart] = useState<
+      { mode: StudyMode; conceptIds: string[]; key: string } | undefined
+    >(undefined);
   const current = useRef(snapshot),
     saving = useRef(false);
   current.current = snapshot;
@@ -130,9 +130,6 @@ export function StudyApp() {
     window.addEventListener('guria:study-progress', refreshProgress);
     return () => window.removeEventListener('guria:study-progress', refreshProgress);
   }, [refreshProgress]);
-  const openPractice = (stageId: string, title: string) => {
-    navigate({ practice: { stageId, title } });
-  };
   useEffect(() => {
     void loadWorkspace();
     const timer = setInterval(() => notify(pt.quizReminder), 15 * 60 * 1000);
@@ -188,23 +185,32 @@ export function StudyApp() {
     }
   };
   const settingsLoad = () => run(async () => setSettings(await api('settings')));
-  const startQuiz = (nodes: Concept[]) => {
-    const ids = nodes
-      .filter((n) => n.question && n.due <= Date.now())
-      .slice(0, 3)
-      .map((n) => n.id);
-    if (!ids.length) {
+  // Revisar: abre o Praticar com o modo e os conceitos certos, sem começar a sessão.
+  const openReview = (nodes: Concept[]) => {
+    const target = reviewTarget(nodes, Date.now());
+    if (!target) {
       notify(pt.noQuiz);
       return;
     }
     setSelected('');
-    setQuiz(ids);
-    setAnswer(null);
-    setFeedback(false);
-    setTeachingVariant(chooseImprovement(current.current.data.improvement, 'teaching'));
-    setTeachingExposure(crypto.randomUUID());
+    setPracticeStart({ ...target, key: crypto.randomUUID() });
+    navigate({ tab: 'praticar' });
   };
-  const questionNode = state.concepts.find((n) => n.id === quiz[0]);
+  // Praticar uma aula importada: modo Rápido com os conceitos da aula (a sessão não começa sozinha).
+  const openLessonPractice = (lessonId: string) => {
+    const target = lessonPracticeTarget(current.current.data.concepts, lessonId);
+    if (!target) {
+      notify(pt.noQuiz);
+      return;
+    }
+    setSelected('');
+    setPracticeStart({
+      mode: target.mode,
+      conceptIds: target.conceptIds,
+      key: crypto.randomUUID(),
+    });
+    navigate({ tab: 'praticar' });
+  };
   const recordImprovement = async (event: ImprovementEvent) => {
     const latest = current.current.data;
     await commit({ ...latest, improvement: addImprovementFeedback(latest.improvement, event) });
@@ -219,7 +225,11 @@ export function StudyApp() {
     await commit({
       ...latest,
       concepts: latest.concepts.map((n) =>
-        n.id === id ? recordAnswer(n, correct, kind, score) : n,
+        n.id === id
+          ? recordAnswer(n, correct, kind, score, Date.now(), undefined, {
+              helped: retryAfterFeedback(n, kind),
+            })
+          : n,
       ),
     });
   };
@@ -240,7 +250,18 @@ export function StudyApp() {
         <small>{pt.edition}</small>
         <nav className="study-navigation" aria-label="Seções de estudo">
           {(
-            ['studies', 'chat', 'network', 'materials', 'courses', 'library', 'plan', 'settings'] as Tab[]
+            [
+              'studies',
+              'chat',
+              'network',
+              'materials',
+              'courses',
+              'praticar',
+              'skills',
+              'entrevista',
+              'plan',
+              'settings',
+            ] as Tab[]
           ).map((t) => (
             <button
               key={t}
@@ -255,12 +276,13 @@ export function StudyApp() {
               <span
                 className="study-nav-icon"
                 aria-hidden="true"
-                style={{ maskImage: `url(/study/icons/${t === 'library' ? 'courses' : t === 'chat' ? 'studies' : t}.svg)` }}
+                style={{
+                  maskImage: `url(/study/icons/${t === 'chat' ? 'studies' : t === 'praticar' ? 'practice' : t}.svg)`,
+                }}
               />
               {pt[t]}
             </button>
           ))}
-          {proEnabled && <a href="/workspace" className="study-nav">Área Pro</a>}
         </nav>
         <a href="/study/layouts.html" className="nexo-design-link">
           Explorar os 4 layouts ↗
@@ -347,14 +369,15 @@ export function StudyApp() {
               <button
                 className="study-btn primary"
                 disabled={!loaded}
-                onClick={() => startQuiz(visible)}
+                onClick={() => openReview(visible)}
               >
-                {pt.review} · {visible.filter((n) => n.question && n.due <= Date.now()).length}
+                {pt.review} ·{' '}
+                {visible.filter((n) => n.due <= Date.now() && exercisesOf(n).length > 0).length}
               </button>
             )}
           </div>
         </header>
-        {busy && !node && !editing && !questionNode && (
+        {busy && !node && !editing && (
           <StudySkeleton compact label="Processando sua solicitação…" />
         )}
         {notice && (
@@ -369,28 +392,7 @@ export function StudyApp() {
             </button>
           </div>
         )}
-        {practice && (
-          <section className="guria-practice" aria-labelledby="guria-practice-title">
-            <div className="study-row guria-section-header">
-              <div>
-                <p className="study-muted">Prática</p>
-                <h2 id="guria-practice-title">{practice.title}</h2>
-              </div>
-              <button className="study-btn" onClick={() => navigate({ practice: null })}>
-                {tab === 'courses' ? 'Voltar aos cursos' : 'Voltar à leitura'}
-              </button>
-            </div>
-            <div className="guria-practice-player">
-              <ClassroomSurface
-                key={practice.stageId}
-                classroomId={practice.stageId}
-                variant="pane"
-                embeddedStudy
-              />
-            </div>
-          </section>
-        )}
-        <div hidden={!!practice}>
+        <div>
           {!loaded ? (
             loadError ? (
               <section className="study-card" role="alert">
@@ -410,7 +412,7 @@ export function StudyApp() {
                   conversationTopic={chatTopic}
                   clearConversationTopic={() => setChatTopic('')}
                   reading={reading}
-                  setReading={(value) => navigate({ reading: value, practice: null })}
+                  setReading={(value) => navigate({ reading: value })}
                   state={state}
                   recordImprovement={recordImprovement}
                   revision={snapshot.revision}
@@ -423,15 +425,25 @@ export function StudyApp() {
                   notify={notify}
                   openMap={(id, nodeId) => {
                     setSelected(nodeId || '');
-                    navigate({ tab: 'network', course: id, practice: null });
+                    navigate({ tab: 'network', course: id });
                   }}
                   openPlan={() => setTab('plan')}
                   openMaterials={() => setTab('materials')}
-                  openPractice={openPractice}
-                  review={(id) => startQuiz(state.concepts.filter((n) => n.courseIds.includes(id)))}
+                  review={(id) =>
+                    openReview(state.concepts.filter((n) => n.courseIds.includes(id)))
+                  }
                 />
               </div>
-              <div hidden={tab !== 'chat'}><StudyChat harness={settings?.harness || 'codex'} ready={!!settings?.harness} onStudy={(topic) => { setChatTopic(topic); navigate({ tab: 'studies', reading: '', practice: null }); }} /></div>
+              <div hidden={tab !== 'chat'}>
+                <StudyChat
+                  harness={settings?.harness || 'codex'}
+                  ready={!!settings?.harness}
+                  onStudy={(topic) => {
+                    setChatTopic(topic);
+                    navigate({ tab: 'studies', reading: '' });
+                  }}
+                />
+              </div>
               {tab === 'network' && (
                 <>
                   <div className="guria-network-tools">
@@ -474,6 +486,7 @@ export function StudyApp() {
                           origin: 'manual',
                           evidence: [],
                           attempts: [],
+                          exercises: [],
                           due: 0,
                         })
                       }
@@ -503,6 +516,9 @@ export function StudyApp() {
               )}
               <div hidden={tab !== 'materials'}>
                 <Materials
+                  openLessonPractice={openLessonPractice}
+                  revision={snapshot.revision}
+                  setSnapshot={setSnapshot}
                   selection={{
                     harness: settings?.harness || 'codex',
                     model: settings?.model || '',
@@ -525,13 +541,32 @@ export function StudyApp() {
                   commit={commit}
                   notify={notify}
                   openCourse={(id) => {
-                    navigate({ tab: 'network', course: id, practice: null });
+                    navigate({ tab: 'network', course: id });
                   }}
                   planOnly={tab === 'plan'}
-                  openPractice={openPractice}
+                  review={(id) =>
+                    openReview(state.concepts.filter((n) => n.courseIds.includes(id)))
+                  }
+                  startPractice={(mode) => {
+                    setTab('praticar');
+                    setPracticeStart({ mode, conceptIds: [], key: crypto.randomUUID() });
+                  }}
                 />
               )}
-              {tab === 'library' && <StudyLibrary openPractice={openPractice} />}
+              {tab === 'skills' && <SkillsTab ready={!!settings?.harness} notify={notify} />}
+              {tab === 'entrevista' && (
+                <InterviewTab harness={settings?.harness || 'codex'} ready={!!settings?.harness} />
+              )}
+              {tab === 'praticar' && (
+                <PracticeTab
+                  state={state}
+                  refresh={refreshProgress}
+                  ready={!!settings?.harness}
+                  key={practiceStart?.key}
+                  initialMode={practiceStart?.mode}
+                  initialConceptIds={practiceStart?.conceptIds}
+                />
+              )}
               {tab === 'settings' && (
                 <>
                   <section className="study-card guria-settings">
@@ -611,6 +646,7 @@ export function StudyApp() {
                       {settings?.localReady ? pt.ready : pt.unavailable}
                     </p>
                   </section>
+                  <ReminderSettings notify={notify} />
                   <section className="study-card">
                     <h2>Melhoria do ensino</h2>
                     <p className="study-muted">
@@ -650,30 +686,34 @@ export function StudyApp() {
                       <button
                         className="study-btn"
                         onClick={() => {
-                          const url = URL.createObjectURL(
-                            new Blob(
-                              [
-                                JSON.stringify(
-                                  { format: 'openmaic-study-v1', data: state },
-                                  null,
-                                  2,
+                          // O backup vem do servidor: a tela só recebe as respostas pendentes redigidas.
+                          void api<Snapshot>('workspace-backup')
+                            .then((full) => {
+                              const url = URL.createObjectURL(
+                                new Blob(
+                                  [
+                                    JSON.stringify(
+                                      { format: BACKUP_FORMAT, data: full.data },
+                                      null,
+                                      2,
+                                    ),
+                                  ],
+                                  { type: 'application/json' },
                                 ),
-                              ],
-                              { type: 'application/json' },
-                            ),
-                          );
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = 'openmaic-estudos.json';
-                          a.click();
-                          setTimeout(() => URL.revokeObjectURL(url), 1000);
+                              );
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = 'gurIA-estudos.json';
+                              a.click();
+                              setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            })
+                            .catch((error: Error) => notify(error.message));
                         }}
                       >
                         {pt.download}
                       </button>
                       <Field title={pt.importBackup}>
-                        <input
-                          type="file"
+                        <FileInput
                           accept=".json"
                           disabled={busy}
                           onChange={(e) => {
@@ -683,7 +723,7 @@ export function StudyApp() {
                                 if (file.size > 10 * 1024 * 1024)
                                   throw new Error('Backup maior que 10 MB.');
                                 const backup = JSON.parse(await file.text());
-                                if (backup.format !== 'openmaic-study-v1')
+                                if (!isKnownBackupFormat(backup.format))
                                   throw new Error('Formato de backup incompatível.');
                                 await commit(backup.data);
                                 notify(pt.saved);
@@ -715,7 +755,7 @@ export function StudyApp() {
               <button className="study-btn" onClick={() => setEditing({ ...node })}>
                 {pt.edit}
               </button>
-              <button className="study-btn" onClick={() => startQuiz([node])}>
+              <button className="study-btn" onClick={() => openReview([node])}>
                 {pt.review}
               </button>
               <button
@@ -771,8 +811,9 @@ export function StudyApp() {
               </article>
             ))}
             <p className="study-muted">
-              {node.attempts.length} respostas · {mastery(node).days} dias com acertos. O domínio
-              exige revisão espaçada e aplicação.
+              {node.attempts.length} respostas · {mastery(node).evidenceCount} evidências sem ajuda.
+              O domínio exige duas demonstrações sem ajuda (ligar, desenhar ou escrever), com pelo
+              menos 3 dias de intervalo.
             </p>
           </Dialog>
         )}
@@ -832,89 +873,6 @@ export function StudyApp() {
                 }
               >
                 {pt.save}
-              </button>
-            </footer>
-          </Dialog>
-        )}
-        {questionNode?.question && (
-          <Dialog title={pt.quiz} close={() => setQuiz([])} busy={busy}>
-            <h3>{questionNode.question.question}</h3>
-            <div className="study-options" style={{ margin: '20px 0' }}>
-              {questionNode.question.options.map((option, i) => (
-                <button
-                  key={i}
-                  className={`study-btn ${answer === i ? 'primary' : ''}`}
-                  disabled={feedback || busy}
-                  onClick={() => setAnswer(i)}
-                >
-                  {String.fromCharCode(65 + i)}. {option}
-                </button>
-              ))}
-            </div>
-            {feedback && (
-              <div className="study-alert">
-                <strong>
-                  {answer === questionNode.question.answerIndex ? pt.correct : pt.incorrect}
-                </strong>
-                <p>{questionNode.question.explanation}</p>
-                {teachingVariant === 'candidate' && questionNode.summary.trim() && (
-                  <details>
-                    <summary>Rever o conceito</summary>
-                    <p className="study-note">{questionNode.summary}</p>
-                  </details>
-                )}
-                <p>Este retorno ajudou você a entender a resposta?</p>
-                {state.improvement.events.some((event) => event.id === teachingExposure) ? (
-                  <p className="study-muted">Avaliação registrada. Obrigado!</p>
-                ) : (
-                  <div className="study-row">
-                    {[true, false].map((helpful) => (
-                      <button
-                        key={String(helpful)}
-                        className="study-btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(() =>
-                            recordImprovement({
-                              id: teachingExposure,
-                              kind: 'teaching',
-                              variant: teachingVariant,
-                              helpful,
-                            }),
-                          )
-                        }
-                      >
-                        {helpful ? 'Sim, ajudou' : 'Pode melhorar'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <footer>
-              <button
-                className="study-btn primary"
-                disabled={busy || answer === null}
-                onClick={() =>
-                  feedback
-                    ? (setQuiz((q) => q.slice(1)),
-                      setAnswer(null),
-                      setFeedback(false),
-                      setTeachingVariant(
-                        chooseImprovement(current.current.data.improvement, 'teaching'),
-                      ),
-                      setTeachingExposure(crypto.randomUUID()))
-                    : void run(async () => {
-                        await saveAttempt(
-                          questionNode.id,
-                          answer === questionNode.question!.answerIndex,
-                          'choice',
-                        );
-                        setFeedback(true);
-                      })
-                }
-              >
-                {feedback ? pt.next : pt.answer}
               </button>
             </footer>
           </Dialog>

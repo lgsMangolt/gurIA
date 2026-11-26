@@ -26,16 +26,18 @@ describe('learning lifecycle', () => {
     n = recordAnswer(n, true, 'choice', 1, n.due);
     expect(n.due).toBe(start + 4 * day);
     expect(mastery(n).mastered).toBe(false);
-    n = recordAnswer(n, true, 'application', 1, n.due);
+    n = recordAnswer(n, true, 'write', 1, n.due);
     expect(n.due).toBe(start + 11 * day);
-    expect(graphStatus(n, start + 4 * day)).toBe('mastered');
+    expect(mastery(n).mastered).toBe(false);
+    expect(graphStatus(n, start + 4 * day)).toBe('learning');
+    n = recordAnswer(n, true, 'write', 1, n.due);
+    expect(n.due).toBe(start + 25 * day);
+    expect(graphStatus(n, start + 11 * day)).toBe('mastered');
     expect(graphStatus(n, n.due)).toBe('review');
     const reviewedAt = n.due;
-    n = recordAnswer(n, true, 'choice', 1, reviewedAt);
-    expect(n.due).toBe(reviewedAt + 14 * day);
+    n = recordAnswer(n, true, 'choice', 1, reviewedAt, undefined, { mode: 'revisao' });
+    expect(n.due).toBe(reviewedAt + 30 * day);
     expect(graphStatus(n, reviewedAt)).toBe('mastered');
-    n = recordAnswer(n, true, 'choice', 1, n.due);
-    expect(n.due).toBe(reviewedAt + 44 * day);
   });
   it('does not replace spaced evidence with repeated correct answers on one day', () => {
     let n = base;
@@ -44,17 +46,28 @@ describe('learning lifecycle', () => {
     expect(mastery(n).mastered).toBe(false);
     expect(n.due).toBe(start + 19000 + day);
   });
-  it('requires at least 80 percent accuracy and reschedules errors for tomorrow', () => {
-    let n = base;
-    for (let i = 0; i < 3; i++)
-      n = recordAnswer(n, true, i === 2 ? 'application' : 'choice', 1, start + i * day);
+  it('a miss in spaced review returns the concept to learning; a miss elsewhere does not', () => {
+    let n = recordAnswer(
+      recordAnswer(base, true, 'write', 1, start),
+      true,
+      'write',
+      1,
+      start + 3 * day,
+    );
     expect(mastery(n).mastered).toBe(true);
-    n = recordAnswer(n, false, 'choice', 0, start + 3 * day);
-    expect(n.due).toBe(start + 4 * day);
-    expect(mastery(n).accuracy).toBe(0.75);
-    expect(graphStatus(n, start + 3 * day)).toBe('learning');
-    n = recordAnswer(n, true, 'choice', 1, start + 4 * day);
-    expect(mastery(n).accuracy).toBe(0.8);
+    n = recordAnswer(n, false, 'choice', 0, start + 4 * day, undefined, { mode: 'prova' });
+    expect(n.due).toBe(start + 5 * day);
     expect(graphStatus(n, start + 4 * day)).toBe('mastered');
+    n = recordAnswer(n, false, 'choice', 0, start + 5 * day, undefined, { mode: 'revisao' });
+    expect(n.due).toBe(start + 6 * day);
+    expect(graphStatus(n, start + 5 * day)).toBe('learning');
+    n = recordAnswer(
+      recordAnswer(n, true, 'write', 1, start + 6 * day),
+      true,
+      'write',
+      1,
+      start + 9 * day,
+    );
+    expect(graphStatus(n, start + 9 * day)).toBe('mastered');
   });
 });

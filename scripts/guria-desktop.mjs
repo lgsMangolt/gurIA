@@ -8,7 +8,7 @@ fs.mkdirSync(data, { recursive: true });
 const url = 'http://127.0.0.1:3033';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function health() {
-  try { const r = await fetch(url + '/api/study/health', { signal: AbortSignal.timeout(5000) }); return r.ok && (await r.json()).app === 'OpenMAIC Estudos'; } catch { return false; }
+  try { const r = await fetch(url + '/api/study/health', { signal: AbortSignal.timeout(5000) }); return r.ok && ['gurIA', 'OpenMAIC Estudos'].includes((await r.json()).app); } catch { return false; }
 }
 function start(exe, args, logName, env = process.env) {
   const out = fs.openSync(path.join(data, logName + '.log'), 'a');
@@ -24,7 +24,7 @@ try {
   let dockerOK = false;
   for (let i = 0; i < 60; i++) { if (ready()) { dockerOK = true; break; } await pause(2000); }
   if (!dockerOK) throw new Error('Nao foi possivel iniciar o Docker Desktop. Abra-o e tente novamente.');
-  execFileSync(docker, ['compose', '-p', 'openmaic-study-db', '-f', 'docker-compose.db.yml', 'up', '-d', '--wait', '--wait-timeout', '90', 'postgres'], { cwd: root, env: { ...process.env, OPENMAIC_DB_PORT: '5440' }, windowsHide: true, timeout: 120000, stdio: 'pipe' });
+  execFileSync(docker, ['compose', '-p', 'guria-db', '-f', 'docker-compose.db.yml', 'up', '-d', '--wait', '--wait-timeout', '90', 'postgres'], { cwd: root, env: { ...process.env, OPENMAIC_DB_PORT: '5440' }, windowsHide: true, timeout: 120000, stdio: 'pipe' });
   if (!await health()) {
     // A bound port belonging to another app must never be reused or terminated.
     const net = await import('node:net');

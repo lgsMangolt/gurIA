@@ -1,4 +1,5 @@
-import type { Course, Workspace } from './domain';
+import type { Course, StudyMode, Workspace } from './domain';
+import { exercisesOf } from './exercises/migrate';
 
 export const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -12,6 +13,7 @@ export type PlanItem = {
   minutes: number;
   workMinutes: number;
   reason: string;
+  suggestedMode?: StudyMode;
 };
 type Task = {
   order?: number;
@@ -24,6 +26,10 @@ type Task = {
   deadline?: string;
   priority: number;
   reason: string;
+};
+const SUGGESTED_MODE: Partial<Record<Kind, StudyMode>> = {
+  review: 'revisao',
+  practice: 'aprofundar',
 };
 const round = (n: number) => Math.round(n * 100) / 100;
 export function courseProgress(state: Workspace, course: Course) {
@@ -189,7 +195,7 @@ export function planStudy(state: Workspace, today = new Date()) {
     reviewBudget.set(c.id, Math.max(0, consumeLegacy(c.reviewMinutes) - completedReview));
   }
   // A shared concept creates ONE review, regardless of the number of linked courses.
-  for (const n of state.concepts.filter((n) => n.question)) {
+  for (const n of state.concepts.filter((n) => n.question || exercisesOf(n).length > 0)) {
     const c = courses.find((c) => n.courseIds.includes(c.id));
     const id = `review:${n.id}:${n.due}`;
     const remaining = Math.max(0, 5 - done(id));
@@ -310,6 +316,7 @@ export function planStudy(state: Workspace, today = new Date()) {
         minutes,
         workMinutes,
         reason: task.reason,
+        ...(SUGGESTED_MODE[task.kind] ? { suggestedMode: SUGGESTED_MODE[task.kind] } : {}),
       });
       capacity = round(capacity - minutes);
       task.remaining = round(task.remaining - workMinutes);

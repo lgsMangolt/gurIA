@@ -60,12 +60,10 @@ export function buildStudy(
   plan: StudyPlan,
   id: () => string,
 ) {
-  const courseId = id(),
-    stageId = `stage-${id()}`;
+  const courseId = id();
   const course: Course = {
     learningType: 'free',
     id: courseId,
-    stageId,
     title: plan.title,
     url: '',
     minutes: Math.round(intake.minutes * 0.65),
@@ -92,6 +90,7 @@ export function buildStudy(
     question: section.question,
     evidence: [],
     attempts: [],
+    exercises: [],
     due: 0,
   }));
   const connections = plan.connections

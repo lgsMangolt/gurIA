@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { pt } from '@/lib/study/locale';
 import { StudySkeleton } from './StudySkeleton';
 export async function api<T = any>(
@@ -18,7 +18,7 @@ export async function api<T = any>(
     body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || pt.error);
+  if (!response.ok) throw Object.assign(new Error(data.error || pt.error), { code: data.code });
   return data;
 }
 export function Dialog({
@@ -92,6 +92,34 @@ export function Dialog({
         {busy && <StudySkeleton compact label="Processando, aguarde…" />}
       </div>
     </div>
+  );
+}
+/**
+ * Seletor de arquivo em português: o botão nativo do navegador ("Choose File") muda de
+ * idioma conforme o navegador. O input continua no lugar (acessível pelo teclado e pelo
+ * rótulo do Field), só fica invisível.
+ */
+export function FileInput({
+  onChange,
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [name, setName] = useState('');
+  return (
+    <span className="guria-file">
+      <input
+        {...props}
+        type="file"
+        className="guria-file-input"
+        onChange={(e) => {
+          setName(e.target.files?.[0]?.name ?? '');
+          onChange?.(e);
+        }}
+      />
+      <span className="study-btn guria-file-button" aria-hidden="true">
+        {pt.chooseFile}
+      </span>
+      <span className="guria-file-name">{name || pt.noFileChosen}</span>
+    </span>
   );
 }
 export function Field({ title, children }: { title: string; children: React.ReactNode }) {

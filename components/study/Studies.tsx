@@ -43,7 +43,6 @@ export function Studies({
   openMap,
   openMaterials,
   openPlan,
-  openPractice,
   review,
   recordImprovement,
 }: {
@@ -60,7 +59,6 @@ export function Studies({
   openMap: (id: string, nodeId?: string) => void;
   openMaterials: () => void;
   openPlan: () => void;
-  openPractice: (stageId: string, title: string) => void;
   review: (id: string) => void;
   recordImprovement: (event: ImprovementEvent) => Promise<void>;
 }) {
@@ -385,14 +383,6 @@ export function Studies({
             <button className="study-btn" onClick={openPlan}>
               Ver planejamento
             </button>
-            {selected.stageId && (
-              <button
-                className="study-btn"
-                onClick={() => openPractice(selected.stageId!, selected.title)}
-              >
-                Praticar na gurIA
-              </button>
-            )}
           </div>
           {nodes.map((n, i) => (
             <article className="guria-reading" key={n.id}>

@@ -42,12 +42,14 @@ describe('learning evidence', () => {
     expect(mastery(concept).fraction).toBe(0);
     expect(mastery(recordAnswer(concept, true, 'choice')).mastered).toBe(false);
   });
-  it('requires spaced successes and application', () => {
+  it('requires two unaided demonstrations at least 3 days apart', () => {
     const now = new Date('2026-11-02T12:00:00').getTime();
     let n = concept;
-    for (let day = 0; day < 3; day++) n = recordAnswer(n, true, 'choice', 1, now + day * 86400000);
+    for (let day = 0; day < 4; day++) n = recordAnswer(n, true, 'choice', 1, now + day * 86400000);
     expect(mastery(n).mastered).toBe(false);
-    expect(mastery(recordAnswer(n, true, 'application', 1, now + 3 * 86400000)).mastered).toBe(
+    n = recordAnswer(n, true, 'application', 1, now + 4 * 86400000);
+    expect(mastery(n).mastered).toBe(false);
+    expect(mastery(recordAnswer(n, true, 'application', 1, now + 7 * 86400000)).mastered).toBe(
       true,
     );
   });
@@ -161,5 +163,32 @@ describe('subscription boundary', () => {
       if (old === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = old;
     }
+  });
+});
+
+describe('curso importado (etapa 5)', () => {
+  it('workspace antigo sem os campos novos continua válido', async () => {
+    const { courseSchema } = await import('@/lib/study/domain');
+    const old = courseSchema.parse({
+      id: 'c',
+      title: 'Antigo',
+      minutes: 60,
+      deadline: null,
+      hoursSource: 'official',
+      lessons: [{ id: 'l1', title: 'Aula', minutes: 30 }],
+    });
+    expect(old.lessons![0]).toEqual({ id: 'l1', title: 'Aula', minutes: 30 });
+    const imported = courseSchema.parse({
+      ...old,
+      origin: 'ocw',
+      license: 'CC BY-NC-SA',
+      importSource: 'C:/x.zip',
+      lessons: [
+        { id: 'l1', title: 'Aula', minutes: 5, status: 'processada', summary: 'r', sourceIds: ['s'], minutesEstimated: true },
+      ],
+    });
+    expect(imported.origin).toBe('ocw');
+    expect(imported.lessons![0].status).toBe('processada');
+    expect(imported.lessons![0].sourceIds).toEqual(['s']);
   });
 });

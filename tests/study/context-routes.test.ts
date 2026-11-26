@@ -16,10 +16,7 @@ vi.mock('@/lib/study/service', () => ({
   service: () => ({ harness: 'codex', model: 'gpt-6-luna', generate: doubles.generate }),
 }));
 vi.mock('@/lib/study/runtime/media', () => ({ localReady: () => true }));
-vi.mock('@/lib/server/agent-runtime/owner-scoped-documents', () => ({
-  getOwnerScopedDocumentStore: vi.fn(),
-}));
-vi.mock('@/lib/server/identity/with-owner', () => ({
+vi.mock('@/lib/study/owner', () => ({
   withRequestOwner: async (
     req: NextRequest,
     handler: (owner: { ownerId: string }, headers: Headers) => Promise<Response>,

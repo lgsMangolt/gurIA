@@ -206,7 +206,7 @@ export class CodexBridge {
         } else this.notify?.(msg);
       });
       await this.request('initialize', {
-        clientInfo: { name: 'openmaic_study', title: 'OpenMAIC Estudos', version: '0.2.0' },
+        clientInfo: { name: 'guria', title: 'gurIA', version: '0.2.0' },
         capabilities: { experimentalApi: false },
       });
       this.send({ method: 'initialized', params: {} });

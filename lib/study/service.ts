@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
-import { createHash } from 'node:crypto';
+import { studyRoot } from './storage-root';
 import { CodexBridge } from './runtime/codex';
 import {
   ClaudeBridge,
@@ -17,12 +17,7 @@ const instances = globalThis as typeof globalThis & {
   studyServices?: Map<string, ReturnType<typeof create>>;
 };
 function create(owner: string) {
-  const root = path.join(
-    process.env.LOCALAPPDATA || os.homedir(),
-    'OpenMAIC-Estudos',
-    createHash('sha256').update(owner).digest('hex'),
-  );
-  fs.mkdirSync(root, { recursive: true });
+  const root = studyRoot(process.env.LOCALAPPDATA || os.homedir(), owner);
   const modelFile = path.join(root, 'model.json');
   let selection: Selection = { harness: 'codex', model: '' };
   let models: Partial<Record<HarnessId, string>> = {};

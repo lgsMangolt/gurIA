@@ -11,6 +11,9 @@ export const pt = {
   plan: 'Plano de estudos',
   settings: 'Configurações',
   library: 'Biblioteca',
+  praticar: 'Praticar',
+  skills: 'Skills',
+  entrevista: 'Entrevista',
   all: 'Todos os cursos',
   search: 'Buscar conceito, anotação ou evidência',
   newNote: 'Anotar',
@@ -39,13 +42,8 @@ export const pt = {
   mastered: 'Domínio demonstrado',
   learning: 'Em aprendizagem',
   due: 'Revisão pendente',
-  quizReminder: '15 minutos: sua rodada de até 3 perguntas está disponível.',
-  quiz: 'Revisão · até 3 perguntas',
-  next: 'Próxima',
-  answer: 'Responder',
-  correct: 'Resposta correta',
-  incorrect: 'Confira a explicação',
-  noQuiz: 'Não há perguntas pendentes neste recorte. Aprove uma aula ou aguarde a próxima revisão.',
+  quizReminder: '15 minutos: que tal uma rodada rápida na aba Praticar?',
+  noQuiz: 'Nenhum conceito deste recorte tem exercícios para praticar ainda.',
   explainTask:
     'Explique o conceito com suas palavras e aplique-o a uma situação concreta. Justifique por que funciona e indique um erro comum.',
   yourAnswer: 'Sua explicação ou aplicação',
@@ -55,6 +53,8 @@ export const pt = {
   deepNotice:
     'Complemento gerado pela IA selecionada. Revise e ajuste antes de incorporar novos caminhos.',
   approveBranches: 'Incorporar caminhos selecionados',
+  chooseFile: 'Escolher arquivo',
+  noFileChosen: 'Nenhum arquivo escolhido',
   importTitle: 'Transforme uma aula em estudo',
   importHelp:
     'Áudio ou vídeo até 200 MB. Uma legenda SRT/VTT existente substitui a transcrição automática.',
@@ -101,7 +101,7 @@ export const pt = {
   sourceNote: 'Fonte, data da consulta e observações',
   courseHelp:
     'Cadastre os dados conhecidos. Deixe a carga vazia quando desconhecida; o plano não inventará horas.',
-  createClass: 'Praticar na gurIA',
+  createClass: 'Praticar este curso',
   courseMap: 'Ver mapa do curso',
   shared: 'Um conceito pode pertencer a vários cursos.',
   availability: 'Disponibilidade por dia (minutos)',
@@ -139,4 +139,168 @@ export const pt = {
     'Conceitos com o mesmo nome e contexto podem ser vinculados ao conceito existente durante a revisão.',
   newConcept: 'Criar conceito novo',
   linkExisting: 'Vincular a conceito existente',
+};
+
+// Importar cursos (etapa 5).
+export const ptCourse = {
+  section: 'Cursos importados',
+  sectionHelp:
+    'Importe um curso que você já tem no computador: uma pasta, um zip (como os do MIT OpenCourseWare), PDFs ou legendas. Importar não usa IA nem cota; cada aula é processada só quando você pedir.',
+  import: 'Importar curso',
+  dialogTitle: 'Importar curso',
+  pathLabel: 'Caminho da pasta, do zip ou do arquivo, ou link do YouTube',
+  noYtDlp:
+    'O yt-dlp não está instalado: sem ele a gurIA não lê playlists do YouTube. Veja docs/guia/instalacao.md (Importar do YouTube).',
+  youtubeHelp:
+    'Do YouTube a gurIA lê só a lista de vídeos e as legendas (de preferência as manuais). O vídeo não é baixado; vídeos sem legenda ficam como "sem texto".',
+  pathHelp:
+    'Cole o caminho completo, por exemplo C:\\Users\\voce\\Downloads\\curso.zip. A gurIA só lê; nada é alterado nem copiado, exceto o zip, que é extraído para a pasta de dados dela.',
+  consent:
+    'O material é meu ou tenho autorização para estudá-lo. A licença do curso continua valendo.',
+  run: 'Importar',
+  running: 'Lendo o curso…',
+  noConverter:
+    'O conversor de documentos não está instalado: PDFs, DOCX e PPTX vão entrar sem texto. Veja docs/guia/instalacao.md (Importar cursos).',
+  report: (r: {
+    lessons: number;
+    added: number;
+    missing: number;
+    ignored: number;
+    scanned: number;
+    converterMissing: number;
+    failedDocuments: number;
+  }) =>
+    [
+      `${r.lessons} aulas`,
+      r.added ? `${r.added} novas` : '',
+      r.missing ? `${r.missing} com fonte ausente` : '',
+      r.ignored ? `${r.ignored} arquivos ignorados` : '',
+      r.scanned ? `${r.scanned} PDFs escaneados (não lidos)` : '',
+      r.converterMissing ? `${r.converterMissing} documentos sem o conversor` : '',
+      r.failedDocuments ? `${r.failedDocuments} documentos ilegíveis` : '',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  lessons: (n: number) => (n === 1 ? '1 aula' : `${n} aulas`),
+  license: 'Licença',
+  personalUse: 'uso pessoal',
+  rename: 'Renomear',
+  up: 'Subir',
+  down: 'Descer',
+  join: 'Juntar com a próxima',
+  remove: 'Remover do roteiro',
+  removeConfirm: 'Remover esta aula do roteiro? Os arquivos de origem não são apagados.',
+  save: 'Salvar',
+  cancel: 'Cancelar',
+  minutes: (m: number, estimated?: boolean) => `${estimated ? '~' : ''}${m} min`,
+  origins: {
+    pasta: 'pasta',
+    arquivos: 'arquivos',
+    zip: 'zip',
+    ocw: 'MIT OCW',
+    youtube: 'YouTube',
+  } as Record<string, string>,
+  status: {
+    importada: 'a processar',
+    'precisa-transcrever': 'precisa transcrever',
+    'sem-texto': 'sem texto',
+    escaneado: 'PDF escaneado',
+    processando: 'processando…',
+    'aguardando-revisao': 'aguardando revisão',
+    processada: 'processada',
+    falhou: 'falhou',
+    'fonte-ausente': 'fonte ausente',
+    'texto-ausente': 'texto ausente — reimporte a fonte',
+  } as Record<string, string>,
+};
+
+// Processar e revisar aulas importadas (etapa 5).
+export const ptLesson = {
+  process: 'Processar esta aula',
+  reprocess: 'Processar de novo',
+  review: 'Revisar',
+  confirmTitle: 'Processar aula com IA',
+  estimate: (e: {
+    envios: number;
+    caracteres: number;
+    transcricaoMinutos: number;
+    harness: string;
+    model: string;
+  }) =>
+    `Vai enviar ${e.envios} ${e.envios === 1 ? 'pedido' : 'pedidos'} (cerca de ${e.caracteres.toLocaleString('pt-BR')} caracteres) para ${e.harness}${e.model ? ` (${e.model})` : ''}.` +
+    (e.transcricaoMinutos
+      ? ` Antes, transcreve no computador cerca de ${e.transcricaoMinutos} min de áudio, sem usar cota.`
+      : ''),
+  estimateHelp:
+    'Isso usa a cota da sua assinatura. Se a cota acabar, a aula fica para tentar depois, sem perder nada.',
+  confirm: 'Processar',
+  processing: 'Processando…',
+  cancel: 'Cancelar',
+  reviewTitle: (title: string) => `Revisar: ${title}`,
+  loading: 'Carregando o resultado…',
+  summary: 'Resumo da aula',
+  concepts: 'Conceitos propostos',
+  noConcepts: 'A IA não encontrou conceitos de estudo nesta aula.',
+  keep: 'Levar para a rede',
+  label: 'Nome do conceito',
+  conceptSummary: 'Resumo do conceito',
+  terms: 'Termos do original',
+  evidence: 'Trecho',
+  exercises: (types: string[]) => `Exercícios: ${types.length ? types.join(', ') : 'nenhum'}`,
+  noMastery: 'Aprovar não conta como domínio: o domínio vem da prática.',
+  approve: 'Aprovar selecionados',
+  later: 'Revisar depois',
+  practiceTitle: 'Praticar agora?',
+  practiceOffer: (n: number, min: number) =>
+    `Praticar agora · ${n === 1 ? '1 conceito' : `${n} conceitos`}, cerca de ${min} min`,
+  practiceOfferHelp:
+    'Abre o Praticar no modo Rápido com os conceitos desta aula já marcados. A sessão só começa quando você clicar.',
+  practiceNow: 'Praticar agora',
+  practiceLater: 'Depois',
+  practiceThisLesson: 'Praticar esta aula',
+  approved: (n: number) => (n === 1 ? '1 conceito aprovado.' : `${n} conceitos aprovados.`),
+  processRest: (n: number) =>
+    `Processar o resto (${n} ${n === 1 ? 'aula' : 'aulas'}) · ver estimativa`,
+  restTitle: 'Processar o resto do curso',
+  restHelp:
+    'As aulas são processadas uma por vez, no servidor. Se a cota acabar, a fila para e o resto fica para depois; cada aula processada aguarda a sua revisão.',
+  queueProgress: (n: number, total: number) => `Processando… ${n} de ${total}`,
+  queueDone: (n: number) =>
+    `${n} ${n === 1 ? 'aula processada' : 'aulas processadas'}: revise cada uma antes de salvar.`,
+  queueStopped: (message: string) => `A fila parou: ${message}`,
+};
+
+// Apostila do curso importado (etapa 5).
+export const ptApostila = {
+  open: 'Abrir apostila',
+  title: (course: string) => `Apostila: ${course}`,
+  kicker: 'Apostila de estudo · gurIA',
+  toc: 'Sumário',
+  pending: 'pendente',
+  exercises: 'Exercícios',
+  answers: 'Gabarito',
+  print: 'Exportar PDF',
+  close: 'Fechar',
+};
+
+// Aviso diário do Windows com a contagem de revisões vencidas.
+export const ptReminder = {
+  title: 'Lembrete de revisões',
+  help: 'Um aviso do Windows por dia, só com a contagem — por exemplo, “3 conceitos para revisar hoje”. Funciona com a gurIA fechada; clicar abre a gurIA. Nenhum nome de conceito aparece no aviso.',
+  unsupported: 'Disponível só no Windows, no modo local da gurIA.',
+  loading: 'Verificando o lembrete…',
+  on: 'Ligar lembrete',
+  off: 'Desligar lembrete',
+  hour: 'Horário do aviso',
+  saveHour: 'Salvar horário',
+  test: 'Testar agora',
+  active: (hora: string, proxima?: string) =>
+    `Ligado: todo dia às ${hora}${proxima ? ` · próximo aviso ${new Date(proxima).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}. Se o computador estiver desligado nesse horário, o aviso aparece quando ligar.`,
+  inactive: 'Desligado.',
+  tested: (r: { resultado: string; n: number }) =>
+    r.resultado === 'avisado'
+      ? `Aviso enviado: ${r.n === 1 ? '1 conceito' : `${r.n} conceitos`} para revisar hoje.`
+      : r.resultado === 'nenhuma'
+        ? 'Nenhuma revisão vencida agora — o aviso só aparece quando houver.'
+        : 'Ainda não há revisões para avisar. Pratique um conceito primeiro.',
 };

@@ -259,3 +259,36 @@ describe('adaptive planning without inference', () => {
     expect(planStudy(state, today).days[0].items[0].courseId).toBe('course');
   });
 });
+
+describe('modos de estudo no planejador', () => {
+  const choiceExercise = {
+    type: 'escolha' as const,
+    id: 'e1',
+    prompt: 'p',
+    options: ['a', 'b'],
+    answerIndexes: [0],
+    explanation: '',
+  };
+  it('conceito só com exercises gera tarefa de revisão', () => {
+    const state = workspace({
+      concepts: [concept({ question: undefined, exercises: [choiceExercise] })],
+    });
+    const items = planStudy(state, today).days.flatMap((d) => d.items);
+    expect(items.some((i) => i.kind === 'review' && i.title.includes('Memória'))).toBe(true);
+  });
+  it('conceito sem pergunta nem exercícios não gera revisão', () => {
+    const state = workspace({ concepts: [concept({ question: undefined, exercises: [] })] });
+    const items = planStudy(state, today).days.flatMap((d) => d.items);
+    expect(items.some((i) => i.kind === 'review')).toBe(false);
+  });
+  it('tarefa de revisão sugere revisao e prática sugere aprofundar', () => {
+    const state = workspace({
+      courses: [course({ practiceMinutes: 30 })],
+      concepts: [concept()],
+    });
+    const items = planStudy(state, today).days.flatMap((d) => d.items);
+    expect(items.find((i) => i.kind === 'review')?.suggestedMode).toBe('revisao');
+    expect(items.find((i) => i.kind === 'practice')?.suggestedMode).toBe('aprofundar');
+    expect(items.find((i) => i.kind === 'lesson')?.suggestedMode).toBeUndefined();
+  });
+});

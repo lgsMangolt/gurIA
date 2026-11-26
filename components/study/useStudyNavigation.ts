@@ -1,45 +1,18 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  normalizeEntry,
+  tabFromQuery,
+  type StudyEntry,
+  type StudyScreen,
+} from '@/lib/study/ui/navigation';
 
-export type StudyTab =
-  | 'studies'
-  | 'chat'
-  | 'network'
-  | 'materials'
-  | 'courses'
-  | 'library'
-  | 'plan'
-  | 'settings';
-export type StudyPractice = { stageId: string; title: string };
-type Screen = { tab: StudyTab; reading: string; course: string; practice: StudyPractice | null };
-type Entry = { session: string; index: number; screen: Screen };
-const tabs: StudyTab[] = [
-  'studies',
-  'chat',
-  'network',
-  'materials',
-  'courses',
-  'library',
-  'plan',
-  'settings',
-];
-const initial: Screen = { tab: 'studies', reading: '', course: '', practice: null };
+export type { StudyTab } from '@/lib/study/ui/navigation';
+type Screen = StudyScreen;
+type Entry = StudyEntry;
+const initial: Screen = { tab: 'studies', reading: '', course: '' };
 const key = 'guriaStudyNavigation';
 const storageKey = (session: string) => `guria-navigation:${session}`;
-
-function validEntry(value: any): value is Entry {
-  return (
-    typeof value?.session === 'string' &&
-    Number.isInteger(value.index) &&
-    value.index >= 0 &&
-    tabs.includes(value.screen?.tab) &&
-    typeof value.screen.reading === 'string' &&
-    typeof value.screen.course === 'string' &&
-    (value.screen.practice === null ||
-      (typeof value.screen.practice?.stageId === 'string' &&
-        typeof value.screen.practice?.title === 'string'))
-  );
-}
 
 /** Navigation changes only browser history; it never saves the study workspace. */
 export function useStudyNavigation() {
@@ -56,19 +29,20 @@ export function useStudyNavigation() {
 
   useEffect(() => {
     const restore = () => {
-      const saved = window.history.state?.[key];
+      // Entradas antigas (Biblioteca, player de quiz) são convertidas para o Praticar.
+      const saved = normalizeEntry(window.history.state?.[key]);
       let entry: Entry;
-      if (validEntry(saved)) {
+      if (saved) {
         entry = saved;
+        window.history.replaceState({ ...window.history.state, [key]: entry }, '');
       } else {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get('tab') as StudyTab;
         entry = {
           session: crypto.randomUUID(),
           index: 0,
           screen: {
             ...initial,
-            tab: tabs.includes(tab) ? tab : 'studies',
+            tab: tabFromQuery(params.get('tab')),
             reading: params.get('study') || '',
           },
         };

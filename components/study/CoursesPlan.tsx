@@ -1,6 +1,6 @@
 'use client';
-import { useRef, useState } from 'react';
-import type { Course, Workspace } from '@/lib/study/domain';
+import { useState } from 'react';
+import type { Course, StudyMode, Workspace } from '@/lib/study/domain';
 import { courseProgress } from '@/lib/study/domain';
 import { AdaptivePlan } from './AdaptivePlan';
 import { pt } from '@/lib/study/locale';
@@ -13,9 +13,10 @@ export function CoursesPlan({
   commit,
   notify,
   openCourse,
-  openPractice,
+  review,
   planOnly = false,
   harness = 'codex',
+  startPractice,
 }: {
   state: Workspace;
   revision: number;
@@ -23,15 +24,15 @@ export function CoursesPlan({
   commit: (data: Workspace) => Promise<void>;
   notify: (text: string) => void;
   openCourse: (id: string) => void;
-  openPractice: (stageId: string, title: string) => void;
+  /** Abre o Praticar com os conceitos do curso (botão Revisar). */
+  review: (courseId: string) => void;
   planOnly?: boolean;
   harness?: string;
+  startPractice?: (mode: StudyMode) => void;
 }) {
   const [editing, setEditing] = useState<Course | null>(null),
     [busy, setBusy] = useState(false),
     [lessonError, setLessonError] = useState('');
-  const [openingCourse, setOpeningCourse] = useState('');
-  const opening = useRef(false);
 
   const beginEditing = (course: Course) => {
     setLessonError('');
@@ -56,7 +57,6 @@ export function CoursesPlan({
   };
   return (
     <>
-      {openingCourse && <StudySkeleton label="Carregando revisão e prática…" />}
       {!planOnly && (
         <>
           <div className="study-row guria-section-header">
@@ -105,39 +105,8 @@ export function CoursesPlan({
                   >
                     {pt.edit}
                   </button>
-                  <button
-                    className="study-btn"
-                    disabled={!!openingCourse}
-                    aria-busy={openingCourse === c.id}
-                    onClick={async () => {
-                      if (opening.current) return;
-                      opening.current = true;
-                      setOpeningCourse(c.id);
-                      try {
-                        if (c.stageId) {
-                          const response = await fetch('/api/stages', { cache: 'no-store' });
-                          if (!response.ok) throw new Error('Não foi possível verificar a prática existente.');
-                          const index = await response.json();
-                          if (!Array.isArray(index.stages)) throw new Error('Não foi possível verificar a prática existente.');
-                          const existing = index.stages.find((stage: { id: string }) => stage.id === c.stageId);
-                          if (existing && typeof existing.sceneCount === 'number' && existing.sceneCount > 0) {
-                            openPractice(c.stageId, c.title);
-                            return;
-                          }
-                        }
-                        const data = await api<{ stageId: string }>('classroom', {
-                          courseId: c.id,
-                        });
-                        openPractice(data.stageId, c.title);
-                      } catch (e) {
-                        notify((e as Error).message);
-                      } finally {
-                        opening.current = false;
-                        setOpeningCourse('');
-                      }
-                    }}
-                  >
-                    {openingCourse === c.id ? 'Carregando…' : pt.createClass}
+                  <button className="study-btn" onClick={() => review(c.id)}>
+                    {pt.createClass}
                   </button>
                 </div>
               </article>
@@ -145,7 +114,9 @@ export function CoursesPlan({
           </div>
         </>
       )}
-      {planOnly && <AdaptivePlan state={state} commit={commit} notify={notify} />}
+      {planOnly && (
+        <AdaptivePlan state={state} commit={commit} notify={notify} startPractice={startPractice} />
+      )}
       {editing && (
         <Dialog
           title={editing.id ? pt.edit : pt.addCourse}

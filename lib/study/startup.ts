@@ -1,16 +1,7 @@
-import { resolveSingleUserOwnerId } from '@/lib/server/identity/single-user';
-// The personal edition has no upstream paid generation/extraction workers.
-// PostgreSQL's own schema/version checks still run when its provider initializes.
+import { resolveOwnerId } from './owner';
+// Partida da gurIA: só confere que há um dono e um banco. A edição pessoal não
+// tem os workers de geração/extração nem a antiga Área Pro do OpenMAIC.
 export async function register() {
-  if (!resolveSingleUserOwnerId() || !process.env.DATABASE_URL)
-    throw new Error('OpenMAIC Estudos requer identidade pessoal e banco local.');
-  if (process.env.OPENMAIC_STUDY_PRO_CODEX === 'true') {
-    const { startAgentEventNotifyBus } = await import('@/lib/server/agent-runtime/event-notify-bus');
-    const { startAgentRunner } = await import('@/lib/server/agent-runtime/runner');
-    const bus = startAgentEventNotifyBus();
-    const runner = startAgentRunner();
-    const shutdown = async () => { await runner.stop(); await bus.stop(); };
-    process.once('SIGTERM', () => void shutdown());
-    process.once('SIGINT', () => void shutdown());
-  }
+  if (!resolveOwnerId() || !process.env.DATABASE_URL)
+    throw new Error('gurIA requer identidade pessoal e banco local.');
 }

@@ -1,6 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { dateKey, planStudy, recordSession, type Workspace } from '@/lib/study/domain';
+import {
+  dateKey,
+  planStudy,
+  recordSession,
+  type StudyMode,
+  type Workspace,
+} from '@/lib/study/domain';
+import { MODE_LABELS } from '@/lib/study/ui/copy';
 import type { PlanItem } from '@/lib/study/planner';
 import { pt } from '@/lib/study/locale';
 import { Dialog, Field } from './shared';
@@ -9,10 +16,12 @@ export function AdaptivePlan({
   state,
   commit,
   notify,
+  startPractice,
 }: {
   state: Workspace;
   commit: (data: Workspace) => Promise<void>;
   notify: (text: string) => void;
+  startPractice?: (mode: StudyMode) => void;
 }) {
   const [availability, setAvailability] = useState(state.availability);
   const [entry, setEntry] = useState<{ item: PlanItem; actual: number; completed: number } | null>(
@@ -158,6 +167,15 @@ export function AdaptivePlan({
                     {item.minutes} min estimados · {item.reason}
                   </p>
                 </div>
+                {day.date === today && item.suggestedMode && startPractice && (
+                  <button
+                    className="study-btn"
+                    disabled={busy}
+                    onClick={() => startPractice(item.suggestedMode!)}
+                  >
+                    Praticar (modo sugerido: {MODE_LABELS[item.suggestedMode].title})
+                  </button>
+                )}
                 {day.date === today && (
                   <button
                     className="study-btn"

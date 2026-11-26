@@ -4,12 +4,13 @@
   "include": [
     "next-env.d.ts",
     "types/**/*.d.ts",
-    "lib/export/*.d.ts",
     "components/study/**/*.tsx",
-    "components/scene-renderers/quiz-view.tsx",
     "lib/study/**/*.ts",
     "app/api/study/**/*.ts",
-    "app/study/**/*.tsx"
+    "app/study/**/*.tsx",
+    "app/layout.tsx",
+    "proxy.ts",
+    "instrumentation.ts"
   ],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

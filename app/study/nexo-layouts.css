@@ -864,6 +864,17 @@
 .guria-matte-node-label:hover {
   background: var(--color-subtle);
 }
+/* Rótulo que encostaria em outro mais à frente: some até receber hover ou foco. */
+.guria-matte-node-label.is-crowded {
+  opacity: 0;
+  pointer-events: none;
+}
+.guria-matte-node-label.is-hovered,
+.guria-matte-node-label.is-crowded:focus-visible {
+  opacity: 1;
+  z-index: 2000 !important;
+  background: var(--color-subtle);
+}
 .guria-3d-message {
   position: absolute;
   left: 24px;

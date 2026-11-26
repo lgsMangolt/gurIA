@@ -1,113 +1,60 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Arquivos locais que não vão para o repositório da gurIA.
 
 CLAUDE.local.md
 .claude
 .superpowers
 
-# dependencies
+# dependências
 /node_modules
-/openclaw/node_modules
-/openclaw/package-lock.json
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
+# testes e Playwright
 /coverage
-
-# Playwright
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/.playwright-mcp/
 
-# next.js
-/.next/
+# builds do Next (o app usa .next; a demo, .next-readme-demo)
+/.next*/
 /out/
-
-# production
 /build
 /dist
+*.tsbuildinfo
+next-env.d.ts
 
-# generated: synced from packages/@openmaic/importer/dist for runtime URL import
-/public/vendor/maic-importer
-/public/vendor/standalone-player
+# arquivos gerados pela versão anterior que podem ter ficado na pasta
+/public/vendor/
 
 # misc
 .DS_Store
 *.pem
 
-# debug
+# logs
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+/logs
+/study-*.log
 
-# env files
+# env (só o exemplo vai para o repositório)
 .env*
 !.env.example
-
-# server provider config (contains API keys)
-server-providers.yml
-server-providers-*.yml
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
 
 # IDE
 .idea
 .vscode
-
-# worktrees
 .worktrees
 
-# generated data
+# dados gerados
 /data
-/logs
 
-# docs
+# docs: só o que é da gurIA
 /docs/*
 !/docs/study-agent-context.md
-# Eval results
-eval/whiteboard-shapes/results/
-eval/whiteboard-layout/results/
-eval/outline-language/results/
-eval/orchestration/results/
-eval/orchestration/results-answering/
-eval/orchestration/results-answer-content/
+!/docs/superpowers/
+!/docs/screenshots/
+!/docs/guia/
 
-# e2e screenshot artifacts
-e2e/screenshots/
-
-# local-only sandbox/demo pages (do not ship)
-/app/slide-renderer-demo
-
-# local e2e screenshots for #619 review
-e2e/__screenshots-619/
-/.playwright-mcp/
-
-# Operator model configuration (see openmaic.yml in RFC #1701); it names secrets via ${VAR}
-/openmaic.yml
-
-# Temporary render-service sources extracted by the mixed-pool regression test
-render-service/.owner-bound-parent-*/
-
-# Generated interactive libraries
-/public/vendor/interactive
-
-# Personal study edition validation output
-/study-*.log
-
-# Generated builds and local review artifacts
-/.next-pro-test/
+# saídas locais de revisão e do app de desktop
 /boards/
 /brag-output*/
 /desktop/

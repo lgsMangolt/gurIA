@@ -80,9 +80,10 @@ it('reads fresh data, preserves review priority, and does not infer mastery from
   state.concepts[0] = {
     ...node,
     due: now - 1,
-    attempts: [3, 2, 1].map((day) => ({
+    attempts: [4, 2, 1].map((day) => ({
       at: now - day * 86400000,
       correct: true,
+      helped: false,
       score: 1,
       kind: 'application' as const,
     })),
@@ -90,7 +91,7 @@ it('reads fresh data, preserves review priority, and does not infer mastery from
   revision = 1;
   const result = await reader.getConcept({ conceptId: node.id });
   expect(result.revision).toBe(1);
-  expect(result.concept.progress).toMatchObject({ state: 'review', mastered: true, attempts: 3 });
+  expect(result.concept.progress).toMatchObject({ state: 'review', mastered: true, attempts: 3, evidence: 3 });
   expect((await reader.getCourse({ courseId: course.id })).course.dueReviews).toBe(1);
 });
 

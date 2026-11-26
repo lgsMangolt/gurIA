@@ -3,19 +3,33 @@ import { useEffect, useRef, useState } from 'react';
 import { pt } from '@/lib/study/locale';
 import type { Workspace } from '@/lib/study/domain';
 import { SegmentRecorder, type VideoSegment } from '@/lib/study/segment-recorder';
-import { api, Dialog, Field } from './shared';
+import { api, Dialog, Field, FileInput } from './shared';
 import { StudySkeleton } from './StudySkeleton';
+import { CourseRoadmap } from './courses/CourseRoadmap';
+import { ImportCourse } from './courses/ImportCourse';
+import { LessonActions, ProcessRest } from './courses/LessonReview';
+import { Apostila } from './courses/Apostila';
+import { ptApostila, ptCourse } from '@/lib/study/locale';
 export function Materials({
+  openLessonPractice,
   state,
+  revision,
+  setSnapshot,
   selection,
   incorporate,
   notify,
 }: {
+  openLessonPractice: (lessonId: string) => void;
   state: Workspace;
+  revision: number;
+  setSnapshot: (snapshot: { data: Workspace; revision: number }) => void;
   selection: { harness: string; model: string };
   incorporate: (result: any, courseId: string, mapping: Record<string, string>) => Promise<void>;
   notify: (text: string) => void;
 }) {
+  const [importing, setImporting] = useState(false),
+    [apostila, setApostila] = useState<string | null>(null);
+  const imported = state.courses.filter((c) => c.origin);
   const [jobs, setJobs] = useState<any[]>([]),
     [jobsLoaded, setJobsLoaded] = useState(false),
     [file, setFile] = useState<File | null>(null),
@@ -220,8 +234,7 @@ export function Materials({
             </select>
           </Field>
           <Field title={pt.file}>
-            <input
-              type="file"
+            <FileInput
               accept="audio/*,video/*"
               disabled={busy || recording}
               onChange={(e) => {
@@ -232,8 +245,7 @@ export function Materials({
             />
           </Field>
           <Field title={pt.captions}>
-            <input
-              type="file"
+            <FileInput
               accept=".srt,.vtt"
               onChange={async (e) => setCaptions((await e.target.files?.[0]?.text()) || '')}
             />
@@ -293,6 +305,56 @@ export function Materials({
           )}
         </div>
       </section>
+      <section className="study-card guria-imported-courses" aria-labelledby="guria-imported-title">
+        <div className="study-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h2 id="guria-imported-title">{ptCourse.section}</h2>
+          <button className="study-btn primary" onClick={() => setImporting(true)}>
+            {ptCourse.import}
+          </button>
+        </div>
+        <p className="study-muted">{ptCourse.sectionHelp}</p>
+        <div className="study-list" style={{ marginTop: 12 }}>
+          {imported.map((course) => (
+            <CourseRoadmap
+              key={course.id}
+              course={course}
+              revision={revision}
+              setSnapshot={setSnapshot}
+              notify={notify}
+              actions={
+                <div className="study-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                  <button className="study-btn" onClick={() => setApostila(course.id)}>
+                    {ptApostila.open}
+                  </button>
+                  <ProcessRest course={course} setSnapshot={setSnapshot} notify={notify} />
+                </div>
+              }
+            >
+              {(lesson) => (
+                <LessonActions
+                  openLessonPractice={openLessonPractice}
+                  course={course}
+                  lesson={lesson}
+                  revision={revision}
+                  setSnapshot={setSnapshot}
+                  notify={notify}
+                />
+              )}
+            </CourseRoadmap>
+          ))}
+        </div>
+      </section>
+      {apostila && state.courses.some((c) => c.id === apostila) && (
+        <Apostila state={state} courseId={apostila} close={() => setApostila(null)} />
+      )}
+      {importing && (
+        <ImportCourse
+          revision={revision}
+          close={() => setImporting(false)}
+          notify={notify}
+          done={(snapshot) => setSnapshot(snapshot)}
+        />
+      )}
       <h2 style={{ fontWeight: 650, marginBottom: 10 }}>{pt.pending}</h2>
       {!jobsLoaded && <StudySkeleton label="Carregando materiais…" compact />}
       <p className="study-muted">{pt.retention}</p>

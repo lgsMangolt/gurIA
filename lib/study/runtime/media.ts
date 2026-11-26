@@ -91,6 +91,96 @@ export async function runLocal(executable: string, args: string[], timeout = 900
     });
   });
 }
+export type Segment = { startSeconds: number; endSeconds: number; text: string };
+
+/** Transcreve um trecho da mídia com o Whisper local (FFmpeg → WAV 16 kHz → whisper-cli -oj). */
+export async function transcribeChunk(
+  source: string,
+  workdir: string,
+  offset: number,
+  length: number,
+): Promise<Segment[]> {
+  const t = toolPaths();
+  const wav = path.join(workdir, 'audio.wav'),
+    output = path.join(workdir, 'transcript');
+  await runLocal(t.ffmpeg, [
+    '-nostdin',
+    '-v',
+    'error',
+    '-y',
+    '-ss',
+    String(offset),
+    '-i',
+    source,
+    '-t',
+    String(length),
+    '-vn',
+    '-ac',
+    '1',
+    '-ar',
+    '16000',
+    '-c:a',
+    'pcm_s16le',
+    wav,
+  ]);
+  await runLocal(t.whisper, [
+    '-m',
+    t.model,
+    '-f',
+    wav,
+    '-l',
+    'auto',
+    '-t',
+    '6',
+    '-ng',
+    '-oj',
+    '-of',
+    output,
+    '-sns',
+  ]);
+  const raw = JSON.parse(fs.readFileSync(output + '.json', 'utf8'));
+  const segments = (raw.transcription || [])
+    .map((s: any) => ({
+      startSeconds: Math.max(0, s.offsets.from / 1000),
+      endSeconds: Math.min(length, s.offsets.to / 1000),
+      text: String(s.text).trim(),
+    }))
+    .filter((s: Segment) => s.text && s.endSeconds >= s.startSeconds && s.startSeconds <= length);
+  fs.unlinkSync(wav);
+  fs.unlinkSync(output + '.json');
+  return segments;
+}
+
+/** Duração da mídia em segundos (ffprobe). */
+export async function probeDuration(source: string): Promise<number> {
+  const out = await runLocal(toolPaths().ffprobe, [
+    '-v',
+    'error',
+    '-show_entries',
+    'format=duration',
+    '-of',
+    'json',
+    source,
+  ]);
+  const duration = Number(JSON.parse(out).format?.duration);
+  if (!Number.isFinite(duration) || duration <= 0)
+    throw new AppError(400, 'MEDIA_DURATION', 'Não foi possível ler a duração desta mídia.');
+  return duration;
+}
+
+/** Transcreve a mídia inteira em blocos de 5 minutos; os tempos são do início do arquivo. */
+export async function transcribeFile(source: string, workdir: string): Promise<Segment[]> {
+  fs.mkdirSync(workdir, { recursive: true });
+  const duration = await probeDuration(source);
+  const all: Segment[] = [];
+  for (let offset = 0; offset < duration; offset += 300) {
+    const length = Math.min(300, duration - offset);
+    for (const s of await transcribeChunk(source, workdir, offset, length))
+      all.push({ ...s, startSeconds: s.startSeconds + offset, endSeconds: s.endSeconds + offset });
+  }
+  return all;
+}
+
 export function parseCaptions(text: string) {
   const timestamp = (s: string) =>
     s
@@ -324,55 +414,7 @@ export class MediaPipeline {
               endSeconds: Math.min(length, s.endSeconds - offset),
             }));
         else if (hasAudio) {
-          const wav = path.join(folder, 'audio.wav'),
-            output = path.join(folder, 'transcript');
-          await runLocal(t.ffmpeg, [
-            '-nostdin',
-            '-v',
-            'error',
-            '-y',
-            '-ss',
-            String(offset),
-            '-i',
-            source,
-            '-t',
-            String(length),
-            '-vn',
-            '-ac',
-            '1',
-            '-ar',
-            '16000',
-            '-c:a',
-            'pcm_s16le',
-            wav,
-          ]);
-          await runLocal(t.whisper, [
-            '-m',
-            t.model,
-            '-f',
-            wav,
-            '-l',
-            'auto',
-            '-t',
-            '6',
-            '-ng',
-            '-oj',
-            '-of',
-            output,
-            '-sns',
-          ]);
-          const raw = JSON.parse(fs.readFileSync(output + '.json', 'utf8'));
-          segments = (raw.transcription || [])
-            .map((s: any) => ({
-              startSeconds: Math.max(0, s.offsets.from / 1000),
-              endSeconds: Math.min(length, s.offsets.to / 1000),
-              text: String(s.text).trim(),
-            }))
-            .filter(
-              (s: any) => s.text && s.endSeconds >= s.startSeconds && s.startSeconds <= length,
-            );
-          fs.unlinkSync(wav);
-          fs.unlinkSync(output + '.json');
+          segments = await transcribeChunk(source, folder, offset, length);
         }
         const images: string[] = [],
           frameTimes: number[] = [];

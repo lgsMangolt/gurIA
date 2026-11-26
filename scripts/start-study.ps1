@@ -19,7 +19,7 @@ if (-not $listener) {
     }
     if (-not $dockerReady) { throw 'Abra o Docker Desktop e tente novamente.' }
     $env:OPENMAIC_DB_PORT = '5440'
-    & $dockerExe compose -p openmaic-study-db -f docker-compose.db.yml up -d --wait --wait-timeout 90 postgres
+    & $dockerExe compose -p guria-db -f docker-compose.db.yml up -d --wait --wait-timeout 90 postgres
     if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel iniciar o banco de estudos.' }
     New-Item -ItemType Directory -Path (Join-Path $studyRoot 'logs') -Force | Out-Null
     Start-Process -FilePath $nodeExe -ArgumentList '--max-old-space-size=6144 node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port 3033' -WorkingDirectory $studyRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $studyRoot 'logs\study-server.log') -RedirectStandardError (Join-Path $studyRoot 'logs\study-server-error.log') | Out-Null
@@ -27,11 +27,11 @@ if (-not $listener) {
 for ($i = 0; $i -lt 90; $i++) {
     try {
         $health = Invoke-RestMethod -Uri ($studyUrl + '/api/study/health') -TimeoutSec 5
-        if ($health.app -ne 'OpenMAIC Estudos') { throw 'A porta 3033 esta sendo usada por outro aplicativo.' }
+        if ($health.app -notin @('gurIA', 'OpenMAIC Estudos')) { throw 'A porta 3033 esta sendo usada por outro aplicativo.' }
         if (-not $NoOpen) { Start-Process ($studyUrl + '/study') }
-        Write-Host ('OpenMAIC Estudos: ' + $studyUrl)
+        Write-Host ('gurIA: ' + $studyUrl)
         exit 0
     } catch { if ($_.Exception.Message -like '*outro aplicativo*') { throw } }
     Start-Sleep -Seconds 2
 }
-throw 'A inicializacao demorou. Consulte a pasta logs do OpenMAIC-Estudos.'
+throw 'A inicializacao demorou. Consulte a pasta logs do projeto gurIA.'

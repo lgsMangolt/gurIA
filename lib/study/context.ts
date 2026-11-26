@@ -18,6 +18,7 @@ export const progressSchema = z.object({
   correctDays: z.number().int().nonnegative(),
   accuracy: z.number().min(0).max(1),
   attempts: z.number().int().nonnegative(),
+  evidence: z.number().int().nonnegative(),
   due: timestamp.nullable(),
 });
 const conceptSummarySchema = z.object({
@@ -122,6 +123,7 @@ export function createStudyContextReader(owner: string, read: WorkspaceReader) {
       correctDays: result.days,
       accuracy: result.accuracy,
       attempts: node.attempts.length,
+      evidence: result.evidenceCount,
       due: node.due > 0 ? node.due : null,
     };
   };

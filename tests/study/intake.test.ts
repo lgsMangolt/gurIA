@@ -32,6 +32,7 @@ it('builds a free learning with linked concepts, questions and estimated workloa
   const state = emptyWorkspace();
   const r = buildStudy(state, intake, plan, () => String(++counter));
   expect(r.course.learningType).toBe('free');
+  expect(r.course.stageId).toBeUndefined(); // sem aula do player antigo
   expect(r.course.minutes! + r.course.practiceMinutes + r.course.reviewMinutes).toBe(30);
   expect(r.course.lessons!.reduce((n, l) => n + l.minutes, 0)).toBeCloseTo(r.course.minutes!);
   expect(r.data.connections[0]).toMatchObject({

@@ -1,4 +1,5 @@
 import * as THREE from './three.module.js';
+import { crowdedLabels } from './label-layout.js';
 // Local renderer: matte geometry + owned concept data. No network or AI calls.
 export function createMatteGraph(host, nodes, links, onSelect, savedView, onError) {
   const scene = new THREE.Scene(),
@@ -109,18 +110,30 @@ export function createMatteGraph(host, nodes, links, onSelect, savedView, onErro
     camera.updateProjectionMatrix();
     group.updateMatrixWorld(true);
     renderer.render(scene, camera);
+    const boxes = [];
     for (let i = 0; i < meshes.length; i++) {
       const v = meshes[i].position.clone();
       v.y -= records[i].radius + 0.13;
       group.localToWorld(v);
       v.project(camera);
       const label = labels[i];
+      const visible = !(v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.05);
       label.style.left = (v.x * 0.5 + 0.5) * 100 + '%';
       label.style.top = (-v.y * 0.5 + 0.5) * 100 + '%';
       label.style.zIndex = String(Math.round((1 - v.z) * 1000));
-      label.style.visibility =
-        v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.05 ? 'hidden' : 'visible';
+      label.style.visibility = visible ? 'visible' : 'hidden';
+      boxes.push({
+        left: (v.x * 0.5 + 0.5) * w,
+        top: (-v.y * 0.5 + 0.5) * h,
+        width: label.offsetWidth,
+        height: label.offsetHeight,
+        depth: v.z,
+        visible,
+      });
     }
+    // Nomes que encostariam em outro mais à frente ficam transparentes; voltam no hover/foco.
+    const crowded = crowdedLabels(boxes);
+    labels.forEach((label, i) => label.classList.toggle('is-crowded', crowded.has(i)));
   }
   const ray = new THREE.Raycaster(),
     pointer = new THREE.Vector2();
@@ -130,8 +143,24 @@ export function createMatteGraph(host, nodes, links, onSelect, savedView, onErro
     moved = false;
     host.setPointerCapture(e.pointerId);
   }
+  // Mouse sobre uma esfera: mostra o nome dela, mesmo que esteja escondido por amontoamento.
+  let hovered = -1;
+  function hoverAt(e) {
+    const r = host.getBoundingClientRect();
+    pointer.set(
+      ((e.clientX - r.left) / r.width) * 2 - 1,
+      (-(e.clientY - r.top) / r.height) * 2 + 1,
+    );
+    ray.setFromCamera(pointer, camera);
+    const hit = ray.intersectObjects(meshes, false)[0];
+    const index = hit ? meshes.indexOf(hit.object) : -1;
+    if (index === hovered) return;
+    if (hovered >= 0) labels[hovered].classList.remove('is-hovered');
+    if (index >= 0) labels[index].classList.add('is-hovered');
+    hovered = index;
+  }
   function move(e) {
-    if (!drag) return;
+    if (!drag) return hoverAt(e);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 4) moved = true;
     group.rotation.y += (e.clientX - drag.x) * 0.008;
     group.rotation.x = THREE.MathUtils.clamp(
